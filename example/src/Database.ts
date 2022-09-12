@@ -39,20 +39,10 @@ export const testTransaction = () => {
   });
 };
 
-export const testInsert = () => {
-  // Basic request
-  const { status: createUserStatus, message } = sqlite.executeSql(
-    'test',
-    'INSERT INTO "User" (id, name, age, networth) VALUES(?, ?, ?, ?);',
-    [new Date().getMilliseconds(), `TOM`, 32, 3000.23]
-  );
+export const deleteAllFromUser = () => {
+  const { status, message } = sqlite.executeSql('test', 'delete from user', undefined);
 
-  // handle error
-  if (createUserStatus) {
-    console.error('Failed to insert user:', message);
-  }
-
-  console.warn('user inserted', createUserStatus);
+  if (status) console.error('Failed to insert user:', message);
 
   return queryUsers();
 };

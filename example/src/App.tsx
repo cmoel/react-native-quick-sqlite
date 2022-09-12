@@ -13,7 +13,7 @@ import {
 import {
   lowLevelInit,
   queryUsers,
-  testInsert,
+  deleteAllFromUser,
   testTransaction,
   typeORMGetBooks,
   typeORMInit,
@@ -49,9 +49,9 @@ export default function App() {
         }}
       />
       <Button
-        title="Create user (without transaction)"
+        title="Delete all users"
         onPress={() => {
-          testInsert();
+          deleteAllFromUser();
           const users = queryUsers();
           setUsers(users);
         }}
