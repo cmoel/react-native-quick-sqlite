@@ -40,7 +40,11 @@ export const testTransaction = () => {
 };
 
 export const deleteAllFromUser = () => {
-  const { status, message } = sqlite.executeSql('test', 'delete from user', undefined);
+  const { status, message } = sqlite.executeSql(
+    'test',
+    'delete from user',
+    undefined
+  );
 
   if (status) console.error('Failed to insert user:', message);
 
