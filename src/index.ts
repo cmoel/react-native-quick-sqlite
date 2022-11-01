@@ -165,7 +165,7 @@ interface ISQLite {
 
 const locks: Record<
   string,
-  { queue: PendingTransaction[]; inProgress: boolean }
+  { queue: PendingTransaction[]; inProgress: boolean; isCommittable: boolean }
 > = {};
 
 // Enhance some host functions
@@ -191,6 +191,7 @@ QuickSQLite.open = (dbName: string, location?: string) => {
   locks[dbName] = {
     queue: [],
     inProgress: false,
+    isCommittable: true,
   };
 };
 
@@ -234,7 +235,12 @@ QuickSQLite.transaction = (
 
   // Local transaction context object implementation
   const execute = (query: string, params?: any[]): QueryResult => {
-    return QuickSQLite.execute(dbName, query, params);
+    try {
+      return QuickSQLite.execute(dbName, query, params);
+    } catch (e) {
+      locks[dbName].isCommittable = false;
+      throw e;
+    }
   };
 
   const tx: PendingTransaction = {
@@ -242,12 +248,13 @@ QuickSQLite.transaction = (
       try {
         QuickSQLite.execute(dbName, 'BEGIN TRANSACTION');
         callback({ execute });
-
-        QuickSQLite.execute(dbName, 'COMMIT');
-      } catch (e: any) {
-        QuickSQLite.execute(dbName, 'ROLLBACK');
-        throw e;
       } finally {
+        if (locks[dbName].isCommittable) {
+          QuickSQLite.execute(dbName, 'COMMIT');
+        } else {
+          QuickSQLite.execute(dbName, 'ROLLBACK');
+        }
+        locks[dbName].isCommittable = true;
         locks[dbName].inProgress = false;
         startNextTransaction(dbName);
       }
@@ -268,27 +275,35 @@ QuickSQLite.transactionAsync = (
 
   // Local transaction context object implementation
   const execute = (query: string, params?: any[]): QueryResult => {
-    return QuickSQLite.execute(dbName, query, params);
+    try {
+      return QuickSQLite.execute(dbName, query, params);
+    } catch (e) {
+      locks[dbName].isCommittable = false;
+      throw e;
+    }
   };
 
-  const executeAsync = (query: string, params?: any[] | undefined) => {
-    return QuickSQLite.executeAsync(dbName, query, params);
+  const executeAsync = async (query: string, params?: any[] | undefined) => {
+    try {
+      return await QuickSQLite.executeAsync(dbName, query, params);
+    } catch (e) {
+      locks[dbName].isCommittable = false;
+      throw e;
+    }
   };
 
   const tx: PendingTransaction = {
     start: async () => {
       try {
         QuickSQLite.execute(dbName, 'BEGIN TRANSACTION');
-        await callback({
-          execute,
-          executeAsync,
-        });
-
-        QuickSQLite.execute(dbName, 'COMMIT');
-      } catch (e: any) {
-        QuickSQLite.execute(dbName, 'ROLLBACK');
-        throw e;
+        await callback({ execute, executeAsync });
       } finally {
+        if (locks[dbName].isCommittable) {
+          QuickSQLite.execute(dbName, 'COMMIT');
+        } else {
+          QuickSQLite.execute(dbName, 'ROLLBACK');
+        }
+        locks[dbName].isCommittable = true;
         locks[dbName].inProgress = false;
         startNextTransaction(dbName);
       }
